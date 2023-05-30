@@ -1,4 +1,3 @@
-use pyo3::prelude::*;
 use rustc_hash::FxHashSet;
 
 use crate::filter_data_structures::*;
@@ -145,11 +144,10 @@ fn merge_chromosomes(
     new_coverage
 }
 
-#[pyfunction]
 pub fn merge_filtered_data(
     result_data: Vec<FilteredData>,
     chromosome_list: Vec<String>,
-) -> PyResult<FilteredData> {
+) -> FilteredData {
     let chromosomes: Vec<FilteredChromosome> = merge_chromosomes(&result_data, chromosome_list);
     let continuous_intervals = result_data.iter().map(|d| d.continuous_intervals).fold(
         FilterIntervals {
@@ -165,12 +163,12 @@ pub fn merge_filtered_data(
         },
     );
 
-    Ok(FilteredData {
+    FilteredData {
         chromosomes,
         continuous_intervals,
         item_counts: result_data
             .get(0)
             .and_then(|fd| Some(fd.item_counts))
             .unwrap_or([1, 2, 3]),
-    })
+    }
 }

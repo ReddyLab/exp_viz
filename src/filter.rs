@@ -1,11 +1,10 @@
 use std::iter::zip;
 use std::time::Instant;
 
-use pyo3::prelude::*;
 use rustc_hash::FxHashSet;
 
 use crate::filter_data_structures::*;
-use cov_viz_ds::{BucketLoc, ChromosomeData, DbID, FacetCoverage, FacetRange};
+use cov_viz_ds::{BucketLoc, ChromosomeData, CoverageData, DbID, FacetCoverage, FacetRange};
 
 fn is_disjoint(a: &Vec<DbID>, b: &Vec<DbID>) -> bool {
     for val_a in a {
@@ -19,10 +18,8 @@ fn is_disjoint(a: &Vec<DbID>, b: &Vec<DbID>) -> bool {
     true
 }
 
-#[pyfunction]
-pub fn filter_coverage_data(filters: &Filter, data: &PyCoverageData) -> PyResult<FilteredData> {
+pub fn filter_coverage_data(filters: &Filter, data: &CoverageData) -> FilteredData {
     let now = Instant::now();
-    let data = &data.wraps;
 
     let mut coverage_data_disc_facets: FxHashSet<DbID> = FxHashSet::default();
     for facet in data.facets.iter() {
@@ -368,14 +365,5 @@ pub fn filter_coverage_data(filters: &Filter, data: &PyCoverageData) -> PyResult
     };
 
     println!("Time to filter data: {}ms", now.elapsed().as_millis());
-    Ok(new_data)
-}
-
-#[pyfunction]
-pub fn filter_coverage_data_allow_threads(
-    py: Python<'_>,
-    filters: &Filter,
-    data: &PyCoverageData,
-) -> PyResult<FilteredData> {
-    py.allow_threads(|| filter_coverage_data(filters, data))
+    new_data
 }

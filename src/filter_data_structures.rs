@@ -1,28 +1,15 @@
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use cov_viz_ds::{BucketLoc, ChromosomeData, CoverageData, DbID};
-use pyo3::exceptions::PyRuntimeError;
-use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 
-/// Wraps the coverage data type so it can be passed to Python
-#[pyclass(name = "CoverageData")]
-pub struct PyCoverageData {
-    pub wraps: CoverageData,
-}
-
-#[pyclass]
 #[derive(Debug)]
 pub struct Filter {
-    #[pyo3(get, set)]
     pub discrete_facets: FxHashSet<DbID>,
-    #[pyo3(get, set)]
     pub continuous_intervals: Option<FilterIntervals>,
 }
 
-#[pymethods]
 impl Filter {
-    #[new]
     pub fn new() -> Self {
         Filter {
             discrete_facets: FxHashSet::default(),
@@ -35,18 +22,13 @@ impl Filter {
     }
 }
 
-#[pyclass]
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct FilterIntervals {
-    #[pyo3(get, set)]
     pub effect: (f32, f32),
-    #[pyo3(get, set)]
     pub sig: (f32, f32),
 }
 
-#[pymethods]
 impl FilterIntervals {
-    #[new]
     pub fn new() -> Self {
         FilterIntervals {
             effect: (f32::NEG_INFINITY, f32::INFINITY),
@@ -62,14 +44,13 @@ impl FilterIntervals {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, FromPyObject)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct FilteredBucket {
     pub start: u32,
     pub count: usize,
     pub associated_buckets: Vec<u32>,
 }
 
-#[pyclass]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct FilteredChromosome {
     pub chrom: String,
@@ -79,14 +60,10 @@ pub struct FilteredChromosome {
     pub source_intervals: Vec<FilteredBucket>,
 }
 
-#[pyclass]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct FilteredData {
-    #[pyo3(get, set)]
     pub chromosomes: Vec<FilteredChromosome>,
-    #[pyo3(get, set)]
     pub continuous_intervals: FilterIntervals,
-    #[pyo3(get, set)]
     pub item_counts: [u64; 3],
 }
 
@@ -107,13 +84,6 @@ impl FilteredData {
             continuous_intervals: FilterIntervals::new(),
             item_counts: [0, 0, 0],
         }
-    }
-}
-
-#[pymethods]
-impl FilteredData {
-    pub fn to_json(&self) -> PyResult<String> {
-        serde_json::to_string(self).map_err(|e| PyRuntimeError::new_err(e.to_string()))
     }
 }
 
