@@ -1,0 +1,18 @@
+[package]
+name = "exp_viz"
+version = "0.1.3"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+name = "exp_viz"
+crate-type = ["cdylib"]
+
+[dependencies]
+bincode = "1.3.3"
+cov_viz_ds = { git = "https://github.com/ReddyLab/cov_viz_ds", rev = "6a93d8fae232fd16a6de025841d30aae6f3493e3" }
+# cov_viz_ds = { path = "../cov_viz_ds" }  # For working with a local copy during development
+pyo3 = { version = "0.17.1", features = ["extension-module"] }
+rustc-hash = "1.1.0"
+serde = { version = "1.0.137", features = ["derive"] }
+serde_json = "1.0.82"
