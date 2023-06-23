@@ -149,7 +149,7 @@ pub fn merge_filtered_data(
     chromosome_list: Vec<String>,
 ) -> FilteredData {
     let chromosomes: Vec<FilteredChromosome> = merge_chromosomes(&result_data, chromosome_list);
-    let continuous_intervals = result_data.iter().map(|d| d.continuous_intervals).fold(
+    let numeric_intervals = result_data.iter().map(|d| d.numeric_intervals).fold(
         FilterIntervals {
             effect: (f32::MAX, f32::MIN),
             sig: (f32::MAX, f32::MIN),
@@ -165,7 +165,7 @@ pub fn merge_filtered_data(
 
     FilteredData {
         chromosomes,
-        continuous_intervals,
+        numeric_intervals,
         item_counts: result_data
             .get(0)
             .and_then(|fd| Some(fd.item_counts))

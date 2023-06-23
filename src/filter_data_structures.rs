@@ -5,20 +5,20 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug)]
 pub struct Filter {
-    pub discrete_facets: FxHashSet<DbID>,
-    pub continuous_intervals: Option<FilterIntervals>,
+    pub categorical_facets: FxHashSet<DbID>,
+    pub numeric_intervals: Option<FilterIntervals>,
 }
 
 impl Filter {
     pub fn new() -> Self {
         Filter {
-            discrete_facets: FxHashSet::default(),
-            continuous_intervals: None,
+            categorical_facets: FxHashSet::default(),
+            numeric_intervals: None,
         }
     }
 
     pub fn __str__(&self) -> String {
-        format!("Discrete Effects: {:?}", self.discrete_facets)
+        format!("Categorical Effects: {:?}", self.categorical_facets)
     }
 }
 
@@ -63,7 +63,7 @@ pub struct FilteredChromosome {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct FilteredData {
     pub chromosomes: Vec<FilteredChromosome>,
-    pub continuous_intervals: FilterIntervals,
+    pub numeric_intervals: FilterIntervals,
     pub item_counts: [u64; 3],
 }
 
@@ -81,7 +81,7 @@ impl FilteredData {
                     source_intervals: Vec::new(),
                 })
                 .collect(),
-            continuous_intervals: FilterIntervals::new(),
+            numeric_intervals: FilterIntervals::new(),
             item_counts: [0, 0, 0],
         }
     }

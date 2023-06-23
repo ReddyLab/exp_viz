@@ -32,14 +32,14 @@ pub fn filter_coverage_data(filters: &Filter, data: &CoverageData) -> FilteredDa
     }
 
     let coverage_data_disc_facets: FxHashSet<DbID> = coverage_data_disc_facets
-        .intersection(&filters.discrete_facets)
+        .intersection(&filters.categorical_facets)
         .cloned()
         .collect();
 
     let skip_disc_facet_check = coverage_data_disc_facets.is_empty();
-    let skip_cont_facet_check = filters.continuous_intervals.is_none();
+    let skip_cont_facet_check = filters.numeric_intervals.is_none();
 
-    let effect_size_interval = match &filters.continuous_intervals {
+    let effect_size_interval = match &filters.numeric_intervals {
         Some(c) => FacetRange(c.effect.0, c.effect.1),
         None => data
             .facets
@@ -49,7 +49,7 @@ pub fn filter_coverage_data(filters: &Filter, data: &CoverageData) -> FilteredDa
             .range
             .unwrap(),
     };
-    let sig_interval = match &filters.continuous_intervals {
+    let sig_interval = match &filters.numeric_intervals {
         Some(c) => FacetRange(c.sig.0, c.sig.1),
         None => data
             .facets
@@ -62,7 +62,7 @@ pub fn filter_coverage_data(filters: &Filter, data: &CoverageData) -> FilteredDa
 
     let mut source_facets: Vec<FxHashSet<DbID>> = Vec::new();
     for facet in data.facets.iter().filter(|f| {
-        f.facet_type == "FacetType.DISCRETE"
+        f.facet_type == "FacetType.CATEGORICAL"
             && f.coverage
                 .as_ref()
                 .unwrap()
@@ -75,7 +75,7 @@ pub fn filter_coverage_data(filters: &Filter, data: &CoverageData) -> FilteredDa
 
     let mut target_facets: Vec<FxHashSet<DbID>> = Vec::new();
     for facet in data.facets.iter().filter(|f| {
-        f.facet_type == "FacetType.DISCRETE"
+        f.facet_type == "FacetType.CATEGORICAL"
             && f.coverage
                 .as_ref()
                 .unwrap()
@@ -353,7 +353,7 @@ pub fn filter_coverage_data(filters: &Filter, data: &CoverageData) -> FilteredDa
 
     let new_data = FilteredData {
         chromosomes: filtered_data.into_iter().map(|x| x.0).collect(),
-        continuous_intervals: FilterIntervals {
+        numeric_intervals: FilterIntervals {
             effect: (min_effect, max_effect),
             sig: (min_sig, max_sig),
         },
