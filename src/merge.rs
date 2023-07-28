@@ -81,6 +81,13 @@ fn merge_chromosomes(
                             count: filtered_chrom.source_intervals[j].count
                                 + new_chromosome.source_intervals[i].count,
                             associated_buckets: assoc_buckets,
+                            min_sig: filtered_chrom.source_intervals[j]
+                                .min_sig
+                                .min(new_chromosome.source_intervals[i].min_sig),
+                            max_abs_effect: filtered_chrom.source_intervals[j]
+                                .max_abs_effect
+                                .abs()
+                                .max(new_chromosome.source_intervals[i].max_abs_effect.abs()),
                         });
                         i += 1;
                         j += 1;
@@ -129,6 +136,13 @@ fn merge_chromosomes(
                             count: filtered_chrom.target_intervals[j].count
                                 + new_chromosome.target_intervals[i].count,
                             associated_buckets: assoc_buckets,
+                            min_sig: filtered_chrom.target_intervals[j]
+                                .min_sig
+                                .min(new_chromosome.target_intervals[i].min_sig),
+                            max_abs_effect: filtered_chrom.target_intervals[j]
+                                .max_abs_effect
+                                .abs()
+                                .max(new_chromosome.target_intervals[i].max_abs_effect.abs()),
                         });
                         i += 1;
                         j += 1;
