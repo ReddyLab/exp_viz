@@ -84,10 +84,15 @@ fn merge_chromosomes(
                             min_sig: filtered_chrom.source_intervals[j]
                                 .min_sig
                                 .min(new_chromosome.source_intervals[i].min_sig),
-                            max_abs_effect: filtered_chrom.source_intervals[j]
+                            max_abs_effect: if filtered_chrom.target_intervals[j]
                                 .max_abs_effect
                                 .abs()
-                                .max(new_chromosome.source_intervals[i].max_abs_effect.abs()),
+                                > new_chromosome.target_intervals[i].max_abs_effect.abs()
+                            {
+                                filtered_chrom.target_intervals[j].max_abs_effect
+                            } else {
+                                new_chromosome.target_intervals[i].max_abs_effect
+                            },
                         });
                         i += 1;
                         j += 1;
@@ -139,10 +144,15 @@ fn merge_chromosomes(
                             min_sig: filtered_chrom.target_intervals[j]
                                 .min_sig
                                 .min(new_chromosome.target_intervals[i].min_sig),
-                            max_abs_effect: filtered_chrom.target_intervals[j]
+                            max_abs_effect: if filtered_chrom.target_intervals[j]
                                 .max_abs_effect
                                 .abs()
-                                .max(new_chromosome.target_intervals[i].max_abs_effect.abs()),
+                                > new_chromosome.target_intervals[i].max_abs_effect.abs()
+                            {
+                                filtered_chrom.target_intervals[j].max_abs_effect
+                            } else {
+                                new_chromosome.target_intervals[i].max_abs_effect
+                            },
                         });
                         i += 1;
                         j += 1;

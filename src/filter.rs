@@ -151,7 +151,7 @@ pub fn filter_coverage_data(filters: &Filter, data: &CoverageData) -> FilteredDa
                     for interval in &chromosome.source_intervals {
                         let mut associated_bucket = FxHashSet::<BucketLoc>::default();
                         let mut min_interval_sig = f32::MAX; // the lower the number the greater the significance
-                        let mut max_interval_effect = f32::MIN;
+                        let mut max_interval_effect: f32 = 0.0; // the largest absolute effect size
                         for feature in &interval.values {
                             source_ids.insert(feature.id);
                             associated_bucket.extend(feature.associated_buckets.clone());
@@ -159,7 +159,11 @@ pub fn filter_coverage_data(filters: &Filter, data: &CoverageData) -> FilteredDa
                                 reo_ids.insert(observation.reo_id);
                                 min_interval_sig = min_interval_sig.min(observation.significance);
                                 max_interval_effect =
-                                    max_interval_effect.abs().max(observation.effect_size.abs());
+                                    if max_interval_effect.abs() > observation.effect_size.abs() {
+                                        max_interval_effect
+                                    } else {
+                                        observation.effect_size
+                                    }
                             }
                         }
                         chrom_data.source_intervals.push(FilteredBucket {
@@ -185,7 +189,7 @@ pub fn filter_coverage_data(filters: &Filter, data: &CoverageData) -> FilteredDa
                         let mut new_target_buckets = bucket_list.clone();
 
                         let mut min_interval_sig = f32::MAX; // the lower the number the greater the significance
-                        let mut max_interval_effect = f32::MIN;
+                        let mut max_interval_effect: f32 = 0.0; // the largest absolute effect size
 
                         for source in sources {
                             let mut new_regeffects = false;
@@ -212,8 +216,13 @@ pub fn filter_coverage_data(filters: &Filter, data: &CoverageData) -> FilteredDa
                                         }
                                         reo_ids.insert(facet.reo_id);
                                         min_interval_sig = min_interval_sig.min(facet.significance);
-                                        max_interval_effect =
-                                            max_interval_effect.abs().max(facet.effect_size.abs());
+                                        max_interval_effect = if max_interval_effect.abs()
+                                            > facet.effect_size.abs()
+                                        {
+                                            max_interval_effect
+                                        } else {
+                                            facet.effect_size
+                                        };
                                     }
                                 }
                             }
@@ -240,7 +249,7 @@ pub fn filter_coverage_data(filters: &Filter, data: &CoverageData) -> FilteredDa
                     for interval in &chromosome.target_intervals {
                         let mut associated_bucket = FxHashSet::<BucketLoc>::default();
                         let mut min_interval_sig = f32::MAX; // the lower the number the greater the significance
-                        let mut max_interval_effect = f32::MIN;
+                        let mut max_interval_effect: f32 = 0.0; // the largest absolute effect size
                         for feature in &interval.values {
                             target_ids.insert(feature.id);
                             associated_bucket.extend(feature.associated_buckets.clone());
@@ -248,7 +257,11 @@ pub fn filter_coverage_data(filters: &Filter, data: &CoverageData) -> FilteredDa
                                 reo_ids.insert(observation.reo_id);
                                 min_interval_sig = min_interval_sig.min(observation.significance);
                                 max_interval_effect =
-                                    max_interval_effect.abs().max(observation.effect_size.abs());
+                                    if max_interval_effect.abs() > observation.effect_size.abs() {
+                                        max_interval_effect
+                                    } else {
+                                        observation.effect_size
+                                    };
                             }
                         }
                         chrom_data.target_intervals.push(FilteredBucket {
@@ -274,7 +287,7 @@ pub fn filter_coverage_data(filters: &Filter, data: &CoverageData) -> FilteredDa
                         let mut new_source_buckets = bucket_list.clone();
 
                         let mut min_interval_sig = f32::MAX; // the lower the number the greater the significance
-                        let mut max_interval_effect = f32::MIN;
+                        let mut max_interval_effect: f32 = 0.0; // the largest absolute effect size
 
                         for target in targets {
                             let mut new_regeffects = false;
@@ -301,8 +314,13 @@ pub fn filter_coverage_data(filters: &Filter, data: &CoverageData) -> FilteredDa
                                         }
                                         reo_ids.insert(facet.reo_id);
                                         min_interval_sig = min_interval_sig.min(facet.significance);
-                                        max_interval_effect =
-                                            max_interval_effect.abs().max(facet.effect_size.abs());
+                                        max_interval_effect = if max_interval_effect.abs()
+                                            > facet.effect_size.abs()
+                                        {
+                                            max_interval_effect
+                                        } else {
+                                            facet.effect_size
+                                        };
                                     }
                                 }
                             }
