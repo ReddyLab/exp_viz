@@ -157,8 +157,12 @@ pub fn filter_coverage_data(filters: &Filter, data: &CoverageData) -> FilteredDa
                             associated_bucket.extend(feature.associated_buckets.clone());
                             for observation in &feature.facets {
                                 reo_ids.insert(observation.reo_id);
-                                max_interval_sig =
-                                    max_interval_sig.max(-observation.significance.log10());
+                                max_interval_sig = max_interval_sig.max(
+                                    -observation
+                                        .significance
+                                        .max(0.0000000000000000000000000000001)
+                                        .log10(),
+                                );
                                 max_interval_effect =
                                     if max_interval_effect.abs() > observation.effect_size.abs() {
                                         max_interval_effect
@@ -200,7 +204,10 @@ pub fn filter_coverage_data(filters: &Filter, data: &CoverageData) -> FilteredDa
                                         .iter()
                                         .all(|sf| !is_disjoint(&observation.facet_ids, sf))
                                 {
-                                    let obs_sig = -observation.significance.log10();
+                                    let obs_sig = -observation
+                                        .significance
+                                        .max(0.0000000000000000000000000000001)
+                                        .log10();
                                     min_effect = observation.effect_size.min(min_effect);
                                     max_effect = observation.effect_size.max(max_effect);
                                     min_sig = obs_sig.min(min_sig);
@@ -257,8 +264,12 @@ pub fn filter_coverage_data(filters: &Filter, data: &CoverageData) -> FilteredDa
                             associated_bucket.extend(feature.associated_buckets.clone());
                             for observation in &feature.facets {
                                 reo_ids.insert(observation.reo_id);
-                                max_interval_sig =
-                                    max_interval_sig.max(-observation.significance.log10());
+                                max_interval_sig = max_interval_sig.max(
+                                    -observation
+                                        .significance
+                                        .max(0.0000000000000000000000000000001)
+                                        .log10(),
+                                );
                                 max_interval_effect =
                                     if max_interval_effect.abs() > observation.effect_size.abs() {
                                         max_interval_effect
@@ -300,7 +311,10 @@ pub fn filter_coverage_data(filters: &Filter, data: &CoverageData) -> FilteredDa
                                         .iter()
                                         .all(|tf| !is_disjoint(&observation.facet_ids, tf))
                                 {
-                                    let obs_sig = -observation.significance.log10();
+                                    let obs_sig = -observation
+                                        .significance
+                                        .max(0.0000000000000000000000000000001)
+                                        .log10();
                                     min_effect = observation.effect_size.min(min_effect);
                                     max_effect = observation.effect_size.max(max_effect);
                                     min_sig = obs_sig.min(min_sig);
@@ -379,12 +393,18 @@ pub fn filter_coverage_data(filters: &Filter, data: &CoverageData) -> FilteredDa
     };
 
     min_sig = if min_sig == f32::INFINITY {
-        sig_interval.0
+        -sig_interval
+            .1
+            .max(0.0000000000000000000000000000001)
+            .log10()
     } else {
         min_sig
     };
     max_sig = if max_sig == f32::NEG_INFINITY {
-        sig_interval.1
+        -sig_interval
+            .0
+            .max(0.0000000000000000000000000000001)
+            .log10()
     } else {
         max_sig
     };
