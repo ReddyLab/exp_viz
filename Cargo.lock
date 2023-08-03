@@ -23,7 +23,7 @@ dependencies = [
 
 [[package]]
 name = "exp_viz"
-version = "0.1.7"
+version = "0.1.8"
 dependencies = [
  "bincode",
  "cov_viz_ds",

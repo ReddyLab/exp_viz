@@ -150,14 +150,15 @@ pub fn filter_coverage_data(filters: &Filter, data: &CoverageData) -> FilteredDa
                     // do no filtering
                     for interval in &chromosome.source_intervals {
                         let mut associated_bucket = FxHashSet::<BucketLoc>::default();
-                        let mut min_interval_sig = f32::MAX; // the lower the number the greater the significance
-                        let mut max_interval_effect: f32 = 0.0; // the largest absolute effect size
+                        let mut max_interval_sig = f32::MIN; // the max -log10 significance
+                        let mut max_interval_effect: f32 = 0.0; // the largest _absolute_ effect size
                         for feature in &interval.values {
                             source_ids.insert(feature.id);
                             associated_bucket.extend(feature.associated_buckets.clone());
                             for observation in &feature.facets {
                                 reo_ids.insert(observation.reo_id);
-                                min_interval_sig = min_interval_sig.min(observation.significance);
+                                max_interval_sig =
+                                    max_interval_sig.max(-observation.significance.log10());
                                 max_interval_effect =
                                     if max_interval_effect.abs() > observation.effect_size.abs() {
                                         max_interval_effect
@@ -178,7 +179,7 @@ pub fn filter_coverage_data(filters: &Filter, data: &CoverageData) -> FilteredDa
                                     acc
                                 },
                             ),
-                            min_sig: min_interval_sig,
+                            max_log10_sig: max_interval_sig,
                             max_abs_effect: max_interval_effect,
                         });
                     }
@@ -188,40 +189,41 @@ pub fn filter_coverage_data(filters: &Filter, data: &CoverageData) -> FilteredDa
                         let mut new_source_count: usize = 0;
                         let mut new_target_buckets = bucket_list.clone();
 
-                        let mut min_interval_sig = f32::MAX; // the lower the number the greater the significance
-                        let mut max_interval_effect: f32 = 0.0; // the largest absolute effect size
+                        let mut max_interval_sig = f32::MIN; // the max -log10 significance
+                        let mut max_interval_effect: f32 = 0.0; // the largest _absolute_ effect size
 
                         for source in sources {
                             let mut new_regeffects = false;
-                            for facet in &source.facets {
+                            for observation in &source.facets {
                                 if skip_disc_facet_check
                                     || selected_sf
                                         .iter()
-                                        .all(|sf| !is_disjoint(&facet.facet_ids, sf))
+                                        .all(|sf| !is_disjoint(&observation.facet_ids, sf))
                                 {
-                                    min_effect = facet.effect_size.min(min_effect);
-                                    max_effect = facet.effect_size.max(max_effect);
-                                    min_sig = facet.significance.min(min_sig);
-                                    max_sig = facet.significance.max(max_sig);
+                                    let obs_sig = -observation.significance.log10();
+                                    min_effect = observation.effect_size.min(min_effect);
+                                    max_effect = observation.effect_size.max(max_effect);
+                                    min_sig = obs_sig.min(min_sig);
+                                    max_sig = obs_sig.max(max_sig);
 
                                     if skip_cont_facet_check
-                                        || (facet.effect_size >= effect_size_interval.0
-                                            && facet.effect_size <= effect_size_interval.1
-                                            && facet.significance >= sig_interval.0
-                                            && facet.significance <= sig_interval.1)
+                                        || (observation.effect_size >= effect_size_interval.0
+                                            && observation.effect_size <= effect_size_interval.1
+                                            && obs_sig >= sig_interval.0
+                                            && obs_sig <= sig_interval.1)
                                     {
                                         if !new_regeffects {
                                             new_regeffects = true;
                                             source_ids.insert(source.id);
                                         }
-                                        reo_ids.insert(facet.reo_id);
-                                        min_interval_sig = min_interval_sig.min(facet.significance);
+                                        reo_ids.insert(observation.reo_id);
+                                        max_interval_sig = max_interval_sig.max(obs_sig);
                                         max_interval_effect = if max_interval_effect.abs()
-                                            > facet.effect_size.abs()
+                                            > observation.effect_size.abs()
                                         {
                                             max_interval_effect
                                         } else {
-                                            facet.effect_size
+                                            observation.effect_size
                                         };
                                     }
                                 }
@@ -237,7 +239,7 @@ pub fn filter_coverage_data(filters: &Filter, data: &CoverageData) -> FilteredDa
                                 start: interval.start,
                                 count: new_source_count,
                                 associated_buckets: new_target_buckets.flat_list(),
-                                min_sig: min_interval_sig,
+                                max_log10_sig: max_interval_sig,
                                 max_abs_effect: max_interval_effect,
                             });
                         }
@@ -248,14 +250,15 @@ pub fn filter_coverage_data(filters: &Filter, data: &CoverageData) -> FilteredDa
                     // do no filtering
                     for interval in &chromosome.target_intervals {
                         let mut associated_bucket = FxHashSet::<BucketLoc>::default();
-                        let mut min_interval_sig = f32::MAX; // the lower the number the greater the significance
-                        let mut max_interval_effect: f32 = 0.0; // the largest absolute effect size
+                        let mut max_interval_sig = f32::MIN; // the max -log10 significance
+                        let mut max_interval_effect: f32 = 0.0; // the largest _absolute_ effect size
                         for feature in &interval.values {
                             target_ids.insert(feature.id);
                             associated_bucket.extend(feature.associated_buckets.clone());
                             for observation in &feature.facets {
                                 reo_ids.insert(observation.reo_id);
-                                min_interval_sig = min_interval_sig.min(observation.significance);
+                                max_interval_sig =
+                                    max_interval_sig.max(-observation.significance.log10());
                                 max_interval_effect =
                                     if max_interval_effect.abs() > observation.effect_size.abs() {
                                         max_interval_effect
@@ -276,7 +279,7 @@ pub fn filter_coverage_data(filters: &Filter, data: &CoverageData) -> FilteredDa
                                     acc
                                 },
                             ),
-                            min_sig: min_interval_sig,
+                            max_log10_sig: max_interval_sig,
                             max_abs_effect: max_interval_effect,
                         });
                     }
@@ -286,40 +289,41 @@ pub fn filter_coverage_data(filters: &Filter, data: &CoverageData) -> FilteredDa
                         let mut new_target_count: usize = 0;
                         let mut new_source_buckets = bucket_list.clone();
 
-                        let mut min_interval_sig = f32::MAX; // the lower the number the greater the significance
-                        let mut max_interval_effect: f32 = 0.0; // the largest absolute effect size
+                        let mut max_interval_sig = f32::MIN; // the max -log10 significance
+                        let mut max_interval_effect: f32 = 0.0; // the largest _absolute_ effect size
 
                         for target in targets {
                             let mut new_regeffects = false;
-                            for facet in &target.facets {
+                            for observation in &target.facets {
                                 if skip_disc_facet_check
                                     || selected_tf
                                         .iter()
-                                        .all(|tf| !is_disjoint(&facet.facet_ids, tf))
+                                        .all(|tf| !is_disjoint(&observation.facet_ids, tf))
                                 {
-                                    min_effect = facet.effect_size.min(min_effect);
-                                    max_effect = facet.effect_size.max(max_effect);
-                                    min_sig = facet.significance.min(min_sig);
-                                    max_sig = facet.significance.max(max_sig);
+                                    let obs_sig = -observation.significance.log10();
+                                    min_effect = observation.effect_size.min(min_effect);
+                                    max_effect = observation.effect_size.max(max_effect);
+                                    min_sig = obs_sig.min(min_sig);
+                                    max_sig = obs_sig.max(max_sig);
 
                                     if skip_cont_facet_check
-                                        || (facet.effect_size >= effect_size_interval.0
-                                            && facet.effect_size <= effect_size_interval.1
-                                            && facet.significance >= sig_interval.0
-                                            && facet.significance <= sig_interval.1)
+                                        || (observation.effect_size >= effect_size_interval.0
+                                            && observation.effect_size <= effect_size_interval.1
+                                            && obs_sig >= sig_interval.0
+                                            && obs_sig <= sig_interval.1)
                                     {
                                         if !new_regeffects {
                                             target_ids.insert(target.id);
                                             new_regeffects = true;
                                         }
-                                        reo_ids.insert(facet.reo_id);
-                                        min_interval_sig = min_interval_sig.min(facet.significance);
+                                        reo_ids.insert(observation.reo_id);
+                                        max_interval_sig = max_interval_sig.max(obs_sig);
                                         max_interval_effect = if max_interval_effect.abs()
-                                            > facet.effect_size.abs()
+                                            > observation.effect_size.abs()
                                         {
                                             max_interval_effect
                                         } else {
-                                            facet.effect_size
+                                            observation.effect_size
                                         };
                                     }
                                 }
@@ -335,7 +339,7 @@ pub fn filter_coverage_data(filters: &Filter, data: &CoverageData) -> FilteredDa
                                 start: interval.start,
                                 count: new_target_count,
                                 associated_buckets: new_source_buckets.flat_list(),
-                                min_sig: min_interval_sig,
+                                max_log10_sig: max_interval_sig,
                                 max_abs_effect: max_interval_effect,
                             })
                         }

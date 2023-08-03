@@ -49,7 +49,7 @@ pub struct FilteredBucket {
     pub start: u32,
     pub count: usize,
     pub associated_buckets: Vec<u32>,
-    pub min_sig: f32,        // Lower significance values are more significant
+    pub max_log10_sig: f32,  // Lower significance values are more significant
     pub max_abs_effect: f32, // largest absolute effect size
 }
 
