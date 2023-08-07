@@ -4,7 +4,9 @@ use std::time::Instant;
 use rustc_hash::FxHashSet;
 
 use crate::filter_data_structures::*;
-use cov_viz_ds::{BucketLoc, ChromosomeData, CoverageData, DbID, FacetCoverage, FacetRange};
+use cov_viz_ds::{
+    BucketLoc, ChromosomeData, CoverageData, DbID, FacetCoverage, FacetRange, FacetRange64,
+};
 
 fn is_disjoint(a: &Vec<DbID>, b: &Vec<DbID>) -> bool {
     for val_a in a {
@@ -50,13 +52,13 @@ pub fn filter_coverage_data(filters: &Filter, data: &CoverageData) -> FilteredDa
             .unwrap(),
     };
     let sig_interval = match &filters.numeric_intervals {
-        Some(c) => FacetRange(c.sig.0, c.sig.1),
+        Some(c) => FacetRange64(c.sig.0, c.sig.1),
         None => data
             .facets
             .iter()
             .find(|f| f.name == "Significance")
             .unwrap()
-            .range
+            .range64
             .unwrap(),
     };
 
@@ -108,8 +110,8 @@ pub fn filter_coverage_data(filters: &Filter, data: &CoverageData) -> FilteredDa
         FilteredChromosome,
         f32,
         f32,
-        f32,
-        f32,
+        f64,
+        f64,
         FxHashSet<DbID>,
         FxHashSet<DbID>,
         FxHashSet<DbID>,
@@ -121,8 +123,8 @@ pub fn filter_coverage_data(filters: &Filter, data: &CoverageData) -> FilteredDa
                 FilteredChromosome,
                 f32,
                 f32,
-                f32,
-                f32,
+                f64,
+                f64,
                 FxHashSet<DbID>,
                 FxHashSet<DbID>,
                 FxHashSet<DbID>,
@@ -133,8 +135,8 @@ pub fn filter_coverage_data(filters: &Filter, data: &CoverageData) -> FilteredDa
                 let mut min_effect = f32::INFINITY;
                 let mut max_effect = f32::NEG_INFINITY;
 
-                let mut min_sig = f32::INFINITY;
-                let mut max_sig = f32::NEG_INFINITY;
+                let mut min_sig = f64::INFINITY;
+                let mut max_sig = f64::NEG_INFINITY;
 
                 let mut chrom_data = FilteredChromosome {
                     chrom: chromosome.chrom.clone(),
@@ -150,19 +152,15 @@ pub fn filter_coverage_data(filters: &Filter, data: &CoverageData) -> FilteredDa
                     // do no filtering
                     for interval in &chromosome.source_intervals {
                         let mut associated_bucket = FxHashSet::<BucketLoc>::default();
-                        let mut max_interval_sig = f32::MIN; // the max -log10 significance
+                        let mut max_interval_sig = f64::MIN; // the max -log10 significance
                         let mut max_interval_effect: f32 = 0.0; // the largest _absolute_ effect size
                         for feature in &interval.values {
                             source_ids.insert(feature.id);
                             associated_bucket.extend(feature.associated_buckets.clone());
                             for observation in &feature.facets {
                                 reo_ids.insert(observation.reo_id);
-                                max_interval_sig = max_interval_sig.max(
-                                    -observation
-                                        .significance
-                                        .max(0.0000000000000000000000000000001)
-                                        .log10(),
-                                );
+                                max_interval_sig = max_interval_sig
+                                    .max(-observation.significance.max(MIN_SIG).log10());
                                 max_interval_effect =
                                     if max_interval_effect.abs() > observation.effect_size.abs() {
                                         max_interval_effect
@@ -193,7 +191,7 @@ pub fn filter_coverage_data(filters: &Filter, data: &CoverageData) -> FilteredDa
                         let mut new_source_count: usize = 0;
                         let mut new_target_buckets = bucket_list.clone();
 
-                        let mut max_interval_sig = f32::MIN; // the max -log10 significance
+                        let mut max_interval_sig = f64::MIN; // the max -log10 significance
                         let mut max_interval_effect: f32 = 0.0; // the largest _absolute_ effect size
 
                         for source in sources {
@@ -204,10 +202,7 @@ pub fn filter_coverage_data(filters: &Filter, data: &CoverageData) -> FilteredDa
                                         .iter()
                                         .all(|sf| !is_disjoint(&observation.facet_ids, sf))
                                 {
-                                    let obs_sig = -observation
-                                        .significance
-                                        .max(0.0000000000000000000000000000001)
-                                        .log10();
+                                    let obs_sig = -observation.significance.max(MIN_SIG).log10();
                                     min_effect = observation.effect_size.min(min_effect);
                                     max_effect = observation.effect_size.max(max_effect);
                                     min_sig = obs_sig.min(min_sig);
@@ -257,19 +252,15 @@ pub fn filter_coverage_data(filters: &Filter, data: &CoverageData) -> FilteredDa
                     // do no filtering
                     for interval in &chromosome.target_intervals {
                         let mut associated_bucket = FxHashSet::<BucketLoc>::default();
-                        let mut max_interval_sig = f32::MIN; // the max -log10 significance
+                        let mut max_interval_sig = f64::MIN; // the max -log10 significance
                         let mut max_interval_effect: f32 = 0.0; // the largest _absolute_ effect size
                         for feature in &interval.values {
                             target_ids.insert(feature.id);
                             associated_bucket.extend(feature.associated_buckets.clone());
                             for observation in &feature.facets {
                                 reo_ids.insert(observation.reo_id);
-                                max_interval_sig = max_interval_sig.max(
-                                    -observation
-                                        .significance
-                                        .max(0.0000000000000000000000000000001)
-                                        .log10(),
-                                );
+                                max_interval_sig = max_interval_sig
+                                    .max(-observation.significance.max(MIN_SIG).log10());
                                 max_interval_effect =
                                     if max_interval_effect.abs() > observation.effect_size.abs() {
                                         max_interval_effect
@@ -300,7 +291,7 @@ pub fn filter_coverage_data(filters: &Filter, data: &CoverageData) -> FilteredDa
                         let mut new_target_count: usize = 0;
                         let mut new_source_buckets = bucket_list.clone();
 
-                        let mut max_interval_sig = f32::MIN; // the max -log10 significance
+                        let mut max_interval_sig = f64::MIN; // the max -log10 significance
                         let mut max_interval_effect: f32 = 0.0; // the largest _absolute_ effect size
 
                         for target in targets {
@@ -311,10 +302,7 @@ pub fn filter_coverage_data(filters: &Filter, data: &CoverageData) -> FilteredDa
                                         .iter()
                                         .all(|tf| !is_disjoint(&observation.facet_ids, tf))
                                 {
-                                    let obs_sig = -observation
-                                        .significance
-                                        .max(0.0000000000000000000000000000001)
-                                        .log10();
+                                    let obs_sig = -observation.significance.max(MIN_SIG).log10();
                                     min_effect = observation.effect_size.min(min_effect);
                                     max_effect = observation.effect_size.max(max_effect);
                                     min_sig = obs_sig.min(min_sig);
@@ -371,8 +359,8 @@ pub fn filter_coverage_data(filters: &Filter, data: &CoverageData) -> FilteredDa
     let mut min_effect = f32::INFINITY;
     let mut max_effect = f32::NEG_INFINITY;
 
-    let mut min_sig = f32::INFINITY;
-    let mut max_sig = f32::NEG_INFINITY;
+    let mut min_sig = f64::INFINITY;
+    let mut max_sig = f64::NEG_INFINITY;
 
     for x in filtered_data.iter() {
         min_effect = x.1.min(min_effect);
@@ -392,19 +380,13 @@ pub fn filter_coverage_data(filters: &Filter, data: &CoverageData) -> FilteredDa
         max_effect
     };
 
-    min_sig = if min_sig == f32::INFINITY {
-        -sig_interval
-            .1
-            .max(0.0000000000000000000000000000001)
-            .log10()
+    min_sig = if min_sig == f64::INFINITY {
+        -sig_interval.1.max(MIN_SIG).log10()
     } else {
         min_sig
     };
-    max_sig = if max_sig == f32::NEG_INFINITY {
-        -sig_interval
-            .0
-            .max(0.0000000000000000000000000000001)
-            .log10()
+    max_sig = if max_sig == f64::NEG_INFINITY {
+        -sig_interval.0.max(MIN_SIG).log10()
     } else {
         max_sig
     };

@@ -13,8 +13,8 @@ dependencies = [
 
 [[package]]
 name = "cov_viz_ds"
-version = "0.2.1"
-source = "git+https://github.com/ReddyLab/cov_viz_ds?rev=7197888d485d3b4aaa8de751a4578f0c2912115a#7197888d485d3b4aaa8de751a4578f0c2912115a"
+version = "0.2.2"
+source = "git+https://github.com/ReddyLab/cov_viz_ds?rev=21b6986606e141a312f352cd0101f370c6cc4964#21b6986606e141a312f352cd0101f370c6cc4964"
 dependencies = [
  "bincode",
  "rustc-hash",
@@ -23,7 +23,7 @@ dependencies = [
 
 [[package]]
 name = "exp_viz"
-version = "0.1.8"
+version = "0.1.9"
 dependencies = [
  "bincode",
  "cov_viz_ds",

@@ -3,6 +3,12 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use cov_viz_ds::{BucketLoc, ChromosomeData, CoverageData, DbID};
 use serde::{Deserialize, Serialize};
 
+// When filtering this is the smallest we let a significance value be. Sometimes
+// in they data the value is 0, which is infinity when we do a -log10 conversion,
+// so we have to set an actual minimum. This number was selected as "resonable sounding".
+// Don't be afraid to change it if another number becomes more "resonable sounding".
+pub const MIN_SIG: f64 = 1e-100;
+
 #[derive(Debug)]
 pub struct Filter {
     pub categorical_facets: FxHashSet<DbID>,
@@ -25,14 +31,14 @@ impl Filter {
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct FilterIntervals {
     pub effect: (f32, f32),
-    pub sig: (f32, f32),
+    pub sig: (f64, f64),
 }
 
 impl FilterIntervals {
     pub fn new() -> Self {
         FilterIntervals {
             effect: (f32::NEG_INFINITY, f32::INFINITY),
-            sig: (f32::NEG_INFINITY, f32::INFINITY),
+            sig: (f64::NEG_INFINITY, f64::INFINITY),
         }
     }
 
@@ -49,7 +55,7 @@ pub struct FilteredBucket {
     pub start: u32,
     pub count: usize,
     pub associated_buckets: Vec<u32>,
-    pub max_log10_sig: f32,  // Lower significance values are more significant
+    pub max_log10_sig: f64,  // Lower significance values are more significant
     pub max_abs_effect: f32, // largest absolute effect size
 }
 
