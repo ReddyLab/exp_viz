@@ -1,7 +1,12 @@
+use std::fmt;
+
+use roaring::RoaringTreemap;
 use rustc_hash::{FxHashMap, FxHashSet};
+use serde::de::{self, Deserializer, MapAccess, SeqAccess, Visitor};
+use serde::ser::{SerializeStruct, Serializer};
+use serde::{Deserialize, Serialize};
 
 use cov_viz_ds::{BucketLoc, ChromosomeData, CoverageData, DbID};
-use serde::{Deserialize, Serialize};
 
 // When filtering this is the smallest we let a significance value be. Sometimes
 // in they data the value is 0, which is infinity when we do a -log10 conversion,
@@ -68,11 +73,14 @@ pub struct FilteredChromosome {
     pub source_intervals: Vec<FilteredBucket>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug)]
 pub struct FilteredData {
     pub chromosomes: Vec<FilteredChromosome>,
+    pub bucket_size: u32,
     pub numeric_intervals: FilterIntervals,
-    pub item_counts: [u64; 3],
+    pub reo_count: u64,
+    pub sources: RoaringTreemap,
+    pub targets: RoaringTreemap,
 }
 
 impl FilteredData {
@@ -84,14 +92,195 @@ impl FilteredData {
                 .map(|c| FilteredChromosome {
                     chrom: c.chrom.clone(),
                     index: c.index,
-                    bucket_size: c.bucket_size,
+                    bucket_size: data.bucket_size,
                     target_intervals: Vec::new(),
                     source_intervals: Vec::new(),
                 })
                 .collect(),
+            bucket_size: data.bucket_size,
             numeric_intervals: FilterIntervals::new(),
-            item_counts: [0, 0, 0],
+            reo_count: 0,
+            sources: RoaringTreemap::default(),
+            targets: RoaringTreemap::default(),
         }
+    }
+}
+
+const FILTERED_DATA_CHROMOSOMES: &str = "chromosomes";
+const FILTERED_DATA_BUCKET_SIZE: &str = "bucket_Size";
+const FILTERED_DATA_NUMERIC_INTERVALS: &str = "numeric_intervals";
+const FILTERED_DATA_REO_COUNT: &str = "reo_count";
+const FILTERED_DATA_SOURCES: &str = "sources";
+const FILTERED_DATA_TARGETS: &str = "targets";
+
+impl Serialize for FilteredData {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_struct("CoverageData", 2)?;
+        state.serialize_field(FILTERED_DATA_CHROMOSOMES, &self.chromosomes)?;
+        state.serialize_field(FILTERED_DATA_BUCKET_SIZE, &self.bucket_size)?;
+        state.serialize_field(FILTERED_DATA_NUMERIC_INTERVALS, &self.numeric_intervals)?;
+        state.serialize_field(FILTERED_DATA_REO_COUNT, &self.reo_count)?;
+        let mut source_data = vec![];
+        self.sources.serialize_into(&mut source_data);
+        state.serialize_field(FILTERED_DATA_SOURCES, &source_data)?;
+        let mut target_data = vec![];
+        self.targets.serialize_into(&mut target_data);
+        state.serialize_field(FILTERED_DATA_TARGETS, &target_data)?;
+
+        state.end()
+    }
+}
+
+impl<'de> Deserialize<'de> for FilteredData {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        #[serde(field_identifier, rename_all = "lowercase")]
+        enum Field {
+            Chromosomes,
+            Bucket_Size,
+            Numeric_Intervals,
+            Reo_Count,
+            Sources,
+            Targets,
+        }
+
+        struct FilteredDataVisitor;
+
+        impl<'de> Visitor<'de> for FilteredDataVisitor {
+            type Value = FilteredData;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("struct FilteredData")
+            }
+
+            fn visit_seq<V>(self, mut seq: V) -> Result<FilteredData, V::Error>
+            where
+                V: SeqAccess<'de>,
+            {
+                let chromosomes = seq
+                    .next_element()?
+                    .ok_or_else(|| de::Error::invalid_length(0, &self))?;
+                let bucket_size = seq
+                    .next_element()?
+                    .ok_or_else(|| de::Error::invalid_length(0, &self))?;
+                let numeric_intervals = seq
+                    .next_element()?
+                    .ok_or_else(|| de::Error::invalid_length(1, &self))?;
+                let reo_count = seq
+                    .next_element()?
+                    .ok_or_else(|| de::Error::invalid_length(0, &self))?;
+                let source_data: Vec<u8> = seq
+                    .next_element()?
+                    .ok_or_else(|| de::Error::invalid_length(1, &self))?;
+                let target_data: Vec<u8> = seq
+                    .next_element()?
+                    .ok_or_else(|| de::Error::invalid_length(1, &self))?;
+                let sources = RoaringTreemap::deserialize_from(&source_data[..]).unwrap();
+                let targets = RoaringTreemap::deserialize_from(&target_data[..]).unwrap();
+
+                Ok(FilteredData {
+                    chromosomes,
+                    bucket_size,
+                    numeric_intervals,
+                    reo_count,
+                    sources,
+                    targets,
+                })
+            }
+
+            fn visit_map<V>(self, mut map: V) -> Result<FilteredData, V::Error>
+            where
+                V: MapAccess<'de>,
+            {
+                let mut chromosomes = None;
+                let mut bucket_size = None;
+                let mut numeric_intervals = None;
+                let mut reo_count = None;
+                let mut source_data: Option<Vec<u8>> = None;
+                let mut target_data: Option<Vec<u8>> = None;
+                while let Some(key) = map.next_key()? {
+                    match key {
+                        Field::Chromosomes => {
+                            if chromosomes.is_some() {
+                                return Err(de::Error::duplicate_field(FILTERED_DATA_CHROMOSOMES));
+                            }
+                            chromosomes = Some(map.next_value()?);
+                        }
+                        Field::Bucket_Size => {
+                            if bucket_size.is_some() {
+                                return Err(de::Error::duplicate_field(FILTERED_DATA_BUCKET_SIZE));
+                            }
+                            bucket_size = Some(map.next_value()?);
+                        }
+                        Field::Numeric_Intervals => {
+                            if numeric_intervals.is_some() {
+                                return Err(de::Error::duplicate_field(
+                                    FILTERED_DATA_NUMERIC_INTERVALS,
+                                ));
+                            }
+                            numeric_intervals = Some(map.next_value()?);
+                        }
+                        Field::Reo_Count => {
+                            if reo_count.is_some() {
+                                return Err(de::Error::duplicate_field(FILTERED_DATA_REO_COUNT));
+                            }
+                            reo_count = Some(map.next_value()?);
+                        }
+                        Field::Sources => {
+                            if source_data.is_some() {
+                                return Err(de::Error::duplicate_field(FILTERED_DATA_SOURCES));
+                            }
+                            source_data = Some(map.next_value()?);
+                        }
+                        Field::Targets => {
+                            if target_data.is_some() {
+                                return Err(de::Error::duplicate_field(FILTERED_DATA_TARGETS));
+                            }
+                            target_data = Some(map.next_value()?);
+                        }
+                    }
+                }
+                let chromosomes = chromosomes
+                    .ok_or_else(|| de::Error::missing_field(FILTERED_DATA_CHROMOSOMES))?;
+                let bucket_size = bucket_size
+                    .ok_or_else(|| de::Error::missing_field(FILTERED_DATA_BUCKET_SIZE))?;
+                let numeric_intervals = numeric_intervals
+                    .ok_or_else(|| de::Error::missing_field(FILTERED_DATA_NUMERIC_INTERVALS))?;
+                let reo_count =
+                    reo_count.ok_or_else(|| de::Error::missing_field(FILTERED_DATA_REO_COUNT))?;
+                let source_data =
+                    source_data.ok_or_else(|| de::Error::missing_field(FILTERED_DATA_SOURCES))?;
+                let target_data =
+                    target_data.ok_or_else(|| de::Error::missing_field(FILTERED_DATA_TARGETS))?;
+                let sources = RoaringTreemap::deserialize_from(&source_data[..]).unwrap();
+                let targets = RoaringTreemap::deserialize_from(&target_data[..]).unwrap();
+
+                Ok(FilteredData {
+                    chromosomes,
+                    bucket_size,
+                    numeric_intervals,
+                    reo_count,
+                    sources,
+                    targets,
+                })
+            }
+        }
+
+        const FIELDS: &'static [&'static str] = &[
+            FILTERED_DATA_CHROMOSOMES,
+            FILTERED_DATA_BUCKET_SIZE,
+            FILTERED_DATA_NUMERIC_INTERVALS,
+            FILTERED_DATA_REO_COUNT,
+            FILTERED_DATA_SOURCES,
+            FILTERED_DATA_TARGETS,
+        ];
+        deserializer.deserialize_struct("FilteredData", FIELDS, FilteredDataVisitor)
     }
 }
 

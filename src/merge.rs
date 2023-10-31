@@ -1,3 +1,4 @@
+use roaring::RoaringTreemap;
 use rustc_hash::FxHashSet;
 
 use crate::filter_data_structures::*;
@@ -16,6 +17,7 @@ fn merge_chromosomes(
     let mut chroms_covered: FxHashSet<String> = FxHashSet::default();
 
     for chrom in chromosomes {
+        // The default new_chromosome should never ever be used.
         let mut new_chromosome = FilteredChromosome {
             chrom: chrom.clone(),
             index: 0,
@@ -179,20 +181,27 @@ pub fn merge_filtered_data(
             sig: (f64::MAX, f64::MIN),
         },
         |acc, d| FilterIntervals {
-            effect: (
-                f32::min(acc.effect.0, d.effect.0),
-                f32::max(acc.effect.1, d.effect.1),
-            ),
-            sig: (f64::min(acc.sig.0, d.sig.0), f64::max(acc.sig.1, d.sig.1)),
+            effect: (acc.effect.0.min(d.effect.0), acc.effect.1.max(d.effect.1)),
+            sig: (acc.sig.0.min(d.sig.0), acc.sig.1.max(d.sig.1)),
         },
     );
 
     FilteredData {
         chromosomes,
         numeric_intervals,
-        item_counts: result_data
-            .get(0)
-            .and_then(|fd| Some(fd.item_counts))
-            .unwrap_or([1, 2, 3]),
+        bucket_size: result_data[0].bucket_size,
+        reo_count: result_data.iter().map(|f| f.reo_count).sum(),
+        sources: result_data
+            .iter()
+            .fold(RoaringTreemap::default(), |mut acc, f| {
+                acc.extend(&f.sources);
+                acc
+            }),
+        targets: result_data
+            .iter()
+            .fold(RoaringTreemap::default(), |mut acc, f| {
+                acc.extend(&f.targets);
+                acc
+            }),
     }
 }
