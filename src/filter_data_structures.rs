@@ -124,10 +124,10 @@ impl Serialize for FilteredData {
         state.serialize_field(FILTERED_DATA_NUMERIC_INTERVALS, &self.numeric_intervals)?;
         state.serialize_field(FILTERED_DATA_REO_COUNT, &self.reo_count)?;
         let mut source_data = vec![];
-        self.sources.serialize_into(&mut source_data);
+        let _ = self.sources.serialize_into(&mut source_data);
         state.serialize_field(FILTERED_DATA_SOURCES, &source_data)?;
         let mut target_data = vec![];
-        self.targets.serialize_into(&mut target_data);
+        let _ = self.targets.serialize_into(&mut target_data);
         state.serialize_field(FILTERED_DATA_TARGETS, &target_data)?;
 
         state.end()
