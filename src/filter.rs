@@ -322,7 +322,7 @@ pub fn filter_coverage_data(filters: &Filter, data: &CoverageData) -> FilteredDa
     // Merge filtered observations into an intermediate set of data structures
     // that will then be turned into FilteredData
     let observation_chunks =
-        filtered_observations.par_chunks(filtered_observations.len() / p_count);
+        filtered_observations.par_chunks(1.max(filtered_observations.len() / p_count));
     let filter_results: Vec<(
         RoaringTreemap,
         FxHashMap<BucketLoc, BucketData>,
