@@ -3,7 +3,9 @@ use roaring::RoaringTreemap;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::filter_data_structures::*;
-use cov_viz_ds::{BucketLoc, CoverageData, DbID, FacetRange, FacetRange64, ObservationData};
+use cov_viz_ds::{
+    BucketLoc, CoverageData, DbID, ExperimentFeatureData, FacetRange, FacetRange64, ObservationData,
+};
 
 #[derive(Debug, Clone)]
 struct BucketData {
@@ -155,9 +157,13 @@ fn gen_filtered_data(
     }
 }
 
-pub fn filter_coverage_data(filters: &Filter, data: &CoverageData) -> FilteredData {
+pub fn filter_coverage_data(
+    filters: &Filter,
+    data: &CoverageData,
+    included_features: Option<&ExperimentFeatureData>,
+) -> FilteredData {
     let bucket_size = data.bucket_size;
-    let features = &data.features;
+    let feature_buckets = &data.feature_buckets;
 
     //
     // Get Numeric Facet Info
@@ -283,28 +289,52 @@ pub fn filter_coverage_data(filters: &Filter, data: &CoverageData) -> FilteredDa
 
     let filtered_observations: Vec<&ObservationData> =
         if skip_cont_facet_check && f_with_selections.is_empty() {
-            observations.collect()
-        } else {
-            observations
-                .filter(|observation| -> bool {
-                    if skip_cat_facet_check
-                        || selected_f
-                            .iter()
-                            .all(|f| !is_disjoint(&observation.facet_value_ids, f))
-                    {
-                        if skip_cont_facet_check
-                            || (observation.effect_size >= effect_size_interval.0
-                                && observation.effect_size <= effect_size_interval.1
-                                && observation.neg_log_significance >= sig_interval.0
-                                && observation.neg_log_significance <= sig_interval.1)
-                        {
-                            return true;
+            if let Some(included_features) = included_features {
+                observations
+                    .filter(|o| -> bool {
+                        if let Some(target_id) = o.target_id {
+                            included_features.targets.contains(target_id)
+                        } else {
+                            false
                         }
+                    })
+                    .collect()
+            } else {
+                observations.collect()
+            }
+        } else {
+            let filtered_observations = observations.filter(|observation| -> bool {
+                if skip_cat_facet_check
+                    || selected_f
+                        .iter()
+                        .all(|f| !is_disjoint(&observation.facet_value_ids, f))
+                {
+                    if skip_cont_facet_check
+                        || (observation.effect_size >= effect_size_interval.0
+                            && observation.effect_size <= effect_size_interval.1
+                            && observation.neg_log_significance >= sig_interval.0
+                            && observation.neg_log_significance <= sig_interval.1)
+                    {
+                        return true;
                     }
+                }
 
-                    false
-                })
-                .collect()
+                false
+            });
+
+            if let Some(included_features) = included_features {
+                filtered_observations
+                    .filter(|o| -> bool {
+                        if let Some(target_id) = o.target_id {
+                            included_features.targets.contains(target_id)
+                        } else {
+                            false
+                        }
+                    })
+                    .collect()
+            } else {
+                filtered_observations.collect()
+            }
         };
 
     //
@@ -339,7 +369,7 @@ pub fn filter_coverage_data(filters: &Filter, data: &CoverageData) -> FilteredDa
                     observation,
                     &mut source_buckets,
                     &mut target_buckets,
-                    &features,
+                    &feature_buckets,
                 );
             }
 
@@ -395,7 +425,7 @@ pub fn filter_coverage_data(filters: &Filter, data: &CoverageData) -> FilteredDa
             .map(|c| &mut c.source_intervals)
             .collect(),
         bucket_size,
-        features,
+        feature_buckets,
     );
     gen_filtered_data(
         target_buckets,
@@ -409,7 +439,7 @@ pub fn filter_coverage_data(filters: &Filter, data: &CoverageData) -> FilteredDa
             .map(|c| &mut c.target_intervals)
             .collect(),
         bucket_size,
-        features,
+        feature_buckets,
     );
 
     // Make sure no numeric intervals include infinity

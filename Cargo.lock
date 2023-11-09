@@ -37,10 +37,11 @@ checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
 name = "cov_viz_ds"
-version = "0.3.0"
-source = "git+https://github.com/ReddyLab/cov_viz_ds?rev=c97744887871be107d220ee713c122726f908849#c97744887871be107d220ee713c122726f908849"
+version = "0.4.0"
+source = "git+https://github.com/ReddyLab/cov_viz_ds?rev=0c58442bbef49acecb7ab2b5d7e2c150adaa61b5#0c58442bbef49acecb7ab2b5d7e2c150adaa61b5"
 dependencies = [
  "bincode",
+ "roaring",
  "rustc-hash",
  "serde",
 ]
@@ -86,7 +87,7 @@ checksum = "a26ae43d7bcc3b814de94796a5e736d4029efb0ee900c12e2d54c993ad1a1e07"
 
 [[package]]
 name = "exp_viz"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "bincode",
  "cov_viz_ds",

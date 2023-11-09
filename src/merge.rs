@@ -39,13 +39,13 @@ fn merge_chromosomes(
                     break;
                 }
 
-                new_chromosome.index = filtered_chrom.index;
-
                 // Right chromosome; has been added already; need to merge
                 let mut source_intervals: Vec<FilteredBucket> = Vec::new();
-                let mut i = 0;
-                let mut j = 0;
+                let mut i = 0; // new_chromosome source interval index
+                let mut j = 0; // filtered_chrom source interval inded
                 loop {
+                    // We've run out of new_chromosome source intervals
+                    // So we can just add the rest of the filtered_chrom source intervals
                     if i >= new_chromosome.source_intervals.len() {
                         while j < filtered_chrom.source_intervals.len() {
                             source_intervals.push(filtered_chrom.source_intervals[j].clone());
@@ -54,6 +54,8 @@ fn merge_chromosomes(
                         break;
                     }
 
+                    // We've run out of filtered_chrom source intervals
+                    // So we can just add the rest of the new_chromosome source intervals
                     if j >= filtered_chrom.source_intervals.len() {
                         while i < new_chromosome.source_intervals.len() {
                             source_intervals.push(new_chromosome.source_intervals[i].clone());
@@ -86,26 +88,27 @@ fn merge_chromosomes(
                             max_log10_sig: filtered_chrom.source_intervals[j]
                                 .max_log10_sig
                                 .max(new_chromosome.source_intervals[i].max_log10_sig),
-                            max_abs_effect: if filtered_chrom.target_intervals[j]
+                            max_abs_effect: if filtered_chrom.source_intervals[j]
                                 .max_abs_effect
                                 .abs()
-                                > new_chromosome.target_intervals[i].max_abs_effect.abs()
+                                > new_chromosome.source_intervals[i].max_abs_effect.abs()
                             {
-                                filtered_chrom.target_intervals[j].max_abs_effect
+                                filtered_chrom.source_intervals[j].max_abs_effect
                             } else {
-                                new_chromosome.target_intervals[i].max_abs_effect
+                                new_chromosome.source_intervals[i].max_abs_effect
                             },
                         });
                         i += 1;
                         j += 1;
                     }
                 }
-                new_chromosome.source_intervals = source_intervals;
 
                 let mut target_intervals: Vec<FilteredBucket> = Vec::new();
-                i = 0;
-                j = 0;
+                i = 0; // new_chromosome target interval index
+                j = 0; // filtered_chrom target interval inded
                 loop {
+                    // We've run out of new_chromosome target intervals
+                    // So we can just add the rest of the filtered_chrom target intervals
                     if i >= new_chromosome.target_intervals.len() {
                         while j < filtered_chrom.target_intervals.len() {
                             target_intervals.push(filtered_chrom.target_intervals[j].clone());
@@ -114,6 +117,8 @@ fn merge_chromosomes(
                         break;
                     }
 
+                    // We've run out of filtered_chrom target intervals
+                    // So we can just add the rest of the new_chromosome target intervals
                     if j >= filtered_chrom.target_intervals.len() {
                         while i < new_chromosome.target_intervals.len() {
                             target_intervals.push(new_chromosome.target_intervals[i].clone());
@@ -160,7 +165,10 @@ fn merge_chromosomes(
                         j += 1;
                     }
                 }
+
+                new_chromosome.source_intervals = source_intervals;
                 new_chromosome.target_intervals = target_intervals;
+
                 break;
             }
         }
