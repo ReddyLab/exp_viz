@@ -134,19 +134,24 @@ fn gen_filtered_data(
         *max_sig = max_sig.max(bucket_data.max_sig);
 
         intervals[bucket_loc.chrom as usize].push(FilteredBucket {
-            start: bucket_size * bucket_loc.idx,
+            start: bucket_size * bucket_loc.idx + 1,
             count: bucket_data.feature_ids.len() as usize,
-            // buckets are store as a list where the chromosome indexes and bucket indexes alternate.
+            // buckets are stored as a list where the chromosome indexes and bucket indexes alternate.
             // This cuts down on how much data get sent over the wire.
-            associated_buckets: bucket_data.associated_features.iter().fold(
-                Vec::new(),
-                |mut acc, id| {
+            associated_buckets: bucket_data
+                .associated_features
+                .iter()
+                .fold(FxHashSet::<&BucketLoc>::default(), |mut acc, id| {
                     let bucket = features.get(&id).unwrap();
+                    acc.insert(bucket);
+                    acc
+                })
+                .iter()
+                .fold(Vec::new(), |mut acc, bucket| {
                     acc.push(bucket.chrom as u32);
                     acc.push(bucket.idx);
                     acc
-                },
-            ),
+                }),
             max_log10_sig: bucket_data.max_sig,
             max_abs_effect: if bucket_data.max_effect > bucket_data.min_effect.abs() {
                 bucket_data.max_effect
