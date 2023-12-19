@@ -31,14 +31,23 @@ fn is_disjoint(a: &Vec<DbID>, b: &Vec<DbID>) -> bool {
 
 fn add_data_to_bucket(
     id: DbID,
+    chrom: Option<u8>,
     associated_feature: Option<DbID>,
     obs_sig: f64,
     effect_size: f32,
     buckets: &mut FxHashMap<BucketLoc, BucketData>,
     bucket_locs: &FxHashMap<DbID, BucketLoc>,
 ) {
+    let feature_loc = bucket_locs.get(&id);
+    if feature_loc.is_none() {
+        return;
+    }
+    let feature_loc = feature_loc.unwrap();
+    if chrom.is_some() && feature_loc.chrom != chrom.unwrap() {
+        return;
+    }
     buckets
-        .entry(*bucket_locs.get(&id).unwrap())
+        .entry(*feature_loc)
         .and_modify(|bucket_data| {
             bucket_data.feature_ids.insert(id);
             if let Some(af) = associated_feature {
@@ -66,12 +75,14 @@ fn add_data_to_bucket(
 
 fn update_buckets(
     observation: &ObservationData,
+    chrom: Option<u8>,
     source_buckets: &mut FxHashMap<BucketLoc, BucketData>,
     target_buckets: &mut FxHashMap<BucketLoc, BucketData>,
     features: &FxHashMap<DbID, BucketLoc>,
 ) {
     add_data_to_bucket(
         observation.source_id,
+        chrom,
         observation.target_id,
         observation.neg_log_significance,
         observation.effect_size,
@@ -82,6 +93,7 @@ fn update_buckets(
     if let Some(id) = observation.target_id {
         add_data_to_bucket(
             id,
+            chrom,
             Some(observation.source_id),
             observation.neg_log_significance,
             observation.effect_size,
@@ -115,6 +127,7 @@ fn update_bucket_map(
 
 fn gen_filtered_data(
     buckets: FxHashMap<BucketLoc, BucketData>,
+    chrom: Option<u8>,
     feature_count: &mut RoaringTreemap,
     min_effect: &mut f32,
     max_effect: &mut f32,
@@ -133,7 +146,13 @@ fn gen_filtered_data(
         *min_sig = min_sig.min(bucket_data.min_sig);
         *max_sig = max_sig.max(bucket_data.max_sig);
 
-        intervals[bucket_loc.chrom as usize].push(FilteredBucket {
+        let chrom = if chrom.is_none() {
+            bucket_loc.chrom as usize
+        } else {
+            0
+        };
+
+        intervals[chrom].push(FilteredBucket {
             start: bucket_size * bucket_loc.idx + 1,
             count: bucket_data.feature_ids.len() as usize,
             // buckets are stored as a list where the chromosome indexes and bucket indexes alternate.
@@ -372,6 +391,7 @@ pub fn filter_coverage_data(
                 reos.insert(observation.reo_id);
                 update_buckets(
                     observation,
+                    filters.chrom,
                     &mut source_buckets,
                     &mut target_buckets,
                     &feature_buckets,
@@ -420,6 +440,7 @@ pub fn filter_coverage_data(
 
     gen_filtered_data(
         source_buckets,
+        filters.chrom,
         &mut sources,
         &mut min_effect,
         &mut max_effect,
@@ -434,6 +455,7 @@ pub fn filter_coverage_data(
     );
     gen_filtered_data(
         target_buckets,
+        filters.chrom,
         &mut targets,
         &mut min_effect,
         &mut max_effect,
