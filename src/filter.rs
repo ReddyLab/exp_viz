@@ -31,7 +31,6 @@ fn is_disjoint(a: &Vec<DbID>, b: &Vec<DbID>) -> bool {
 
 fn add_data_to_bucket(
     id: DbID,
-    chrom: Option<u8>,
     associated_feature: Option<DbID>,
     obs_sig: f64,
     effect_size: f32,
@@ -42,12 +41,9 @@ fn add_data_to_bucket(
     if feature_loc.is_none() {
         return;
     }
-    let feature_loc = feature_loc.unwrap();
-    if chrom.is_some() && feature_loc.chrom != chrom.unwrap() {
-        return;
-    }
+
     buckets
-        .entry(*feature_loc)
+        .entry(*feature_loc.unwrap())
         .and_modify(|bucket_data| {
             bucket_data.feature_ids.insert(id);
             if let Some(af) = associated_feature {
@@ -75,14 +71,12 @@ fn add_data_to_bucket(
 
 fn update_buckets(
     observation: &ObservationData,
-    chrom: Option<u8>,
     source_buckets: &mut FxHashMap<BucketLoc, BucketData>,
     target_buckets: &mut FxHashMap<BucketLoc, BucketData>,
     features: &FxHashMap<DbID, BucketLoc>,
 ) {
     add_data_to_bucket(
         observation.source_id,
-        chrom,
         observation.target_id,
         observation.neg_log_significance,
         observation.effect_size,
@@ -93,7 +87,6 @@ fn update_buckets(
     if let Some(id) = observation.target_id {
         add_data_to_bucket(
             id,
-            chrom,
             Some(observation.source_id),
             observation.neg_log_significance,
             observation.effect_size,
@@ -392,7 +385,6 @@ pub fn filter_coverage_data(
                 reos.insert(observation.reo_id);
                 update_buckets(
                     observation,
-                    filters.chrom,
                     &mut source_buckets,
                     &mut target_buckets,
                     &feature_buckets,
@@ -419,17 +411,30 @@ pub fn filter_coverage_data(
     //
 
     // Turn bucket lists into chromosome
-    let mut chromosomes: Vec<_> = data
-        .chromosomes
-        .iter()
-        .map(|c| FilteredChromosome {
-            chrom: c.chrom.clone(),
-            index: c.index,
-            bucket_size: data.bucket_size,
-            target_intervals: Vec::new(),
-            source_intervals: Vec::new(),
-        })
-        .collect();
+    let mut chromosomes: Vec<_> = if let Some(chromo_idx) = filters.chrom {
+        data.chromosomes
+            .iter()
+            .filter(|c| c.index == chromo_idx)
+            .map(|c| FilteredChromosome {
+                chrom: c.chrom.clone(),
+                index: c.index,
+                bucket_size: data.bucket_size,
+                target_intervals: Vec::new(),
+                source_intervals: Vec::new(),
+            })
+            .collect()
+    } else {
+        data.chromosomes
+            .iter()
+            .map(|c| FilteredChromosome {
+                chrom: c.chrom.clone(),
+                index: c.index,
+                bucket_size: data.bucket_size,
+                target_intervals: Vec::new(),
+                source_intervals: Vec::new(),
+            })
+            .collect()
+    };
 
     let mut sources = RoaringTreemap::default();
     let mut targets = RoaringTreemap::default();
