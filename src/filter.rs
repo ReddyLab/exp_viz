@@ -161,8 +161,9 @@ fn gen_filtered_data(
                 .associated_features
                 .iter()
                 .fold(FxHashSet::<&BucketLoc>::default(), |mut acc, id| {
-                    let bucket = features.get(&id).unwrap();
-                    acc.insert(bucket);
+                    if let Some(bucket) = features.get(&id) {
+                        acc.insert(bucket);
+                    }
                     acc
                 })
                 .iter()
