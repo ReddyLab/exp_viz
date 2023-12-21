@@ -130,7 +130,10 @@ fn gen_filtered_data(
     bucket_size: u32,
     features: &FxHashMap<DbID, BucketLoc>,
 ) {
-    let mut ordered_buckets: Vec<_> = buckets.into_iter().collect();
+    let mut ordered_buckets: Vec<_> = buckets
+        .into_iter()
+        .filter(|(bucket_loc, _)| chrom.is_none() || bucket_loc.chrom == chrom.unwrap())
+        .collect();
     ordered_buckets.sort_by(|(loc1, _), (loc2, _)| loc1.cmp(loc2));
     for (bucket_loc, bucket_data) in ordered_buckets {
         feature_count.extend(&bucket_data.feature_ids);
@@ -498,7 +501,7 @@ pub fn filter_coverage_data(
         max_sig
     };
 
-    let new_data = FilteredData {
+    FilteredData {
         chromosomes,
         bucket_size,
         numeric_intervals: FilterIntervals {
@@ -508,7 +511,5 @@ pub fn filter_coverage_data(
         reo_count: reos.len(),
         sources,
         targets,
-    };
-
-    new_data
+    }
 }
